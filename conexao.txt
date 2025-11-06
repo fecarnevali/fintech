@@ -1,0 +1,81 @@
+<?php
+session_start();
+
+$hostname = "localhost";
+$bancodedados = "clientes";
+$usuario = "root";
+$senha = "";
+
+$mysqli = new mysqli($hostname, $usuario, $senha, $bancodedados);
+
+if ($mysqli->connect_errno) {
+    echo "Falha ao conectar" . $mysqli->connect_errno . ") " . $mysqli->connect_error;
+}
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    if (isset($_POST['email']) && isset($_POST['senha'])) {
+        $email = mysqli_real_escape_string($mysqli, $_POST['email']);
+        $senha_criar = password_hash($_POST['senha'], PASSWORD_DEFAULT);
+
+
+        // Verificar o login do usuário
+$login_query = "SELECT * FROM contas WHERE email = ?";
+$login_stmt = $mysqli->prepare($login_query);
+$login_stmt->bind_param("s", $email);
+$login_stmt->execute();
+$login_result = $login_stmt->get_result();
+
+if ($login_result->num_rows == 1) {
+    $row = $login_result->fetch_assoc();
+    if (password_verify($senha, $row['senha'])) {
+        // Login bem-sucedido
+        $_SESSION['user_id'] = $row['id']; // Armazene informações na sessão
+        header("Location: conta.html"); // Redirecionar para a página de perfil
+        exit();
+    } else {
+        // Login falhou
+        echo "Credenciais inválidas.";
+    }
+} else {
+    // Login falhou
+    echo "Credenciais inválidas.";
+}
+
+$login_stmt->close();
+
+    }
+
+    if (isset($_POST['nome']) && isset($_POST['email']) && isset($_POST['cpf']) && isset($_POST['senha'])) {
+        $nome = mysqli_real_escape_string($mysqli, $_POST['nome']);
+        $email_criar = mysqli_real_escape_string($mysqli, $_POST['email']);
+        $cpf = mysqli_real_escape_string($mysqli, $_POST['cpf']);
+    
+
+        // Verificar se o email já existe no banco de dados
+        $check_query = "SELECT * FROM contas WHERE email = ?";
+        $check_stmt = $mysqli->prepare($check_query);
+        $check_stmt->bind_param("s", $email_criar);
+        $check_stmt->execute();
+        $check_result = $check_stmt->get_result();
+
+        if ($check_result->num_rows > 0) {
+            echo "Este endereço de email já está em uso.";
+        } else {
+            // Inserir dados na tabela de contas
+            $insert_query = "INSERT INTO contas (nome, email, cpf, senha) VALUES (?, ?, ?, ?)";
+            $insert_stmt = $mysqli->prepare($insert_query);
+            $insert_stmt->bind_param("ssss", $nome, $email_criar, $cpf, $senha_criar);
+            
+            if ($insert_stmt->execute()) {
+                // Criação de conta bem-sucedida
+                echo "Conta criada com sucesso!";
+            } else {
+                // Erro na inserção SQL
+                echo "Erro ao criar a conta.";
+            }
+        }
+        $check_stmt->close();
+        $insert_stmt->close();
+    }
+}
+?>
